@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Emergency Routing - Advanced Traffic Control</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        html { height: 100%; overflow: hidden; }
+        body { height: 100%; overflow: hidden; margin: 0; padding: 0; }
+        .container { height: 100vh; overflow: hidden; }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Space+Mono:wght@700&display=swap');
+
+        :root {
+            --primary: #00d084;
+            --secondary: #ff4757;
+            --accent: #ffa502;
+            --dark: #0f1419;
+            --surface: #1a1f2e;
+            --border: #2a3142;
+            --text-primary: #f0f2f5;
+            --text-secondary: #b0b8c1;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: var(--dark);
+            color: var(--text-primary);
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .container { display: flex; height: 100vh; gap: 0; }
+
+        .control-panel {
+            width: 450px;
+            background: linear-gradient(180deg, var(--surface) 0%, #16192a 100%);
+            border-right: 1px solid var(--border);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+            box-shadow: -8px 0 32px rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+
+        .map-container { flex: 1; position: relative; }
+        #map { width: 100%; height: 100%; background: var(--dark); }
+
+        h1 {
+            font-size: 24px;
+            color: var(--primary);
+            text-shadow: 0 2px 8px rgba(0,208,132,0.3);
+            margin-bottom: 20px;
+        }
+
+        .section { display: flex; flex-direction: column; gap: 12px; }
+
+        .section-title {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+        }
+
+        .route-buttons { display: flex; flex-direction: column; gap: 10px; }
+
+        .route-btn {
+            padding: 14px;
+            border: 2px solid var(--border);
+            background: rgba(255,255,255,0.05);
+            color: var(--text-primary);
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.3s ease;
+            text-align: left;
+        }
+
+        .route-btn:hover {
+            border-color: var(--primary);
+            background: rgba(0,208,132,0.1);
+            transform: translateY(-2px);
+        }
+
+        .route-btn.active {
+            background: linear-gradient(135deg, var(--primary) 0%, #00a864 100%);
+            border-color: var(--primary);
+            color: #000;
+            box-shadow: 0 8px 24px rgba(0,208,132,0.3);
+        }
+
+        .info-panel {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .status-box {
+            text-align: center;
+            padding: 12px;
+            background: rgba(0,208,132,0.1);
+            border-radius: 6px;
+            color: var(--primary);
+            font-weight: 600;
+            border: 1px solid rgba(0,208,132,0.3);
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .info-item:last-child { border-bottom: none; }
+        .info-label { color: var(--text-secondary); }
+
+        .info-value {
+            font-family: 'Space Mono', monospace;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%);
+            width: 0%;
+            transition: width 0.1s ease;
+        }
+
+        .signals-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .signal-display {
+            text-align: center;
+            font-size: 12px;
+            padding: 8px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+        }
+
+        .signal-display.near {
+            background: rgba(0,208,132,0.2);
+            border-color: var(--primary);
+            box-shadow: 0 0 8px rgba(0,208,132,0.5);
+        }
+
+        .signal-display.medium {
+            background: rgba(255,165,2,0.2);
+            border-color: var(--accent);
+            box-shadow: 0 0 8px rgba(255,165,2,0.3);
+        }
+
+        .signal-display.far {
+            background: rgba(255,71,87,0.1);
+            border-color: #ff6b7a;
+        }
+
+        .signal-light {
+            font-size: 32px;
+            margin: 4px 0;
+            animation: none;
+            transition: all 0.3s ease;
+        }
+
+        .signal-light.pulse { animation: signalPulse 0.6s infinite; }
+        .signal-label { font-size: 10px; font-weight: 600; color: var(--text-secondary); }
+        .distance-text { font-size: 9px; color: var(--text-secondary); margin-top: 4px; }
+
+        .pothole-alert {
+            display: none;
+            background: rgba(255,71,87,0.15);
+            border: 1px solid #ff4757;
+            border-radius: 6px;
+            padding: 10px 14px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #ff6b7a;
+            text-align: center;
+            animation: alertPulse 1s infinite;
+        }
+
+        .pothole-alert.moderate {
+            background: rgba(255,165,2,0.15);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        @keyframes alertPulse {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.6; }
+        }
+
+        .scrollable { overflow-y: auto; padding-right: 8px; }
+        .scrollable::-webkit-scrollbar { width: 6px; }
+        .scrollable::-webkit-scrollbar-track { background: transparent; }
+        .scrollable::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        .scrollable::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50%       { opacity: 0.6; transform: scale(1.15); }
+        }
+
+        @keyframes signalPulse {
+            0%, 100% { box-shadow: 0 0 8px currentColor; }
+            50%       { box-shadow: 0 0 16px currentColor; }
+        }
+
+        .ambulance-marker { animation: pulse 0.8s infinite; }
+
+        .speed-display {
+            display: inline-block;
+            background: rgba(0,208,132,0.2);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            border: 1px solid var(--primary);
+            transition: all 0.3s ease;
+        }
+
+        .legend {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 10px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        .traffic-icon { display: inline-block; font-size: 24px; margin: 0 4px; }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <div class="control-panel scrollable">
+        <h1>🚑 Smart Emergency Routing</h1>
+
+        <div class="section">
+            <div class="section-title">📍 Select Hospital Route</div>
+            <div class="route-buttons" id="routeButtons"></div>
+        </div>
+
+        <div class="info-panel" id="infoPanel" style="display:none;">
+            <div class="status-box" id="statusText">Route Selected</div>
+            <div class="pothole-alert" id="potholeAlert">🕳️ POTHOLE AHEAD — Slowing Down</div>
+            <div class="info-item">
+                <span class="info-label">Distance</span>
+                <span class="info-value" id="distanceValue">0 km</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Est. Time</span>
+                <span class="info-value" id="timeValue">0 min</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Current Speed</span>
+                <span class="info-value" id="speedValue">0 km/h</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Progress</span>
+                <span class="info-value" id="progressValue">0%</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+
+        <div class="section" id="signalSection" style="display:none;">
+            <div class="section-title">🚦 Traffic Signals Status</div>
+            <div class="signals-grid" id="signalsGrid"></div>
+        </div>
+
+        <div class="legend">
+            <div class="section-title" style="margin-bottom:12px;">Legend</div>
+            <div class="legend-item"><span class="traffic-icon">🟢</span><span>Signal Near (&lt; 100m)</span></div>
+            <div class="legend-item"><span class="traffic-icon">🟡</span><span>Signal Medium (100–300m)</span></div>
+            <div class="legend-item"><span class="traffic-icon">🔴</span><span>Signal Far (&gt; 300m)</span></div>
+            <div class="legend-item"><span class="traffic-icon">🕳️</span><span>Pothole — Severe (red, 11 km/h)</span></div>
+            <div class="legend-item"><span class="traffic-icon">🕳️</span><span>Pothole — Moderate (orange, 22 km/h)</span></div>
+        </div>
+    </div>
+
+    <div class="map-container">
+        <div id="map"></div>
+    </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+<script>
+    // ══════════════════════════════════════════════════
+    //  CONSTANTS
+    // ══════════════════════════════════════════════════
+    const CENTER            = [9.9930419, 76.3017048];
+    const ZOOM              = 15;
+    const ARRIVAL_THRESHOLD = 15;
+    const SIGNAL_DISTANCES  = { NEAR: 100, MEDIUM: 300 };
+
+    const SPEED_NORMAL   = 15;   // 54 km/h
+    const SPEED_MODERATE = 6;    // ~22 km/h
+    const SPEED_SEVERE   = 3;    // ~11 km/h
+    const POTHOLE_RADIUS = 60;   // metres — slowdown zone
+
+    // Dynamically generated per route selection
+    let POTHOLES = [];
+
+    // ══════════════════════════════════════════════════
+    //  ROUTE DATA
+    // ══════════════════════════════════════════════════
+    const ROUTE_DATA = {
+        lisle: {
+            name: 'Lisle Hospital',
+            color: '#00d084',
+            coordinates: [
+                [9.9908649, 76.3021516], [9.9911956, 76.3021332], [9.9916629, 76.3020623],
+                [9.9922232, 76.3019409], [9.9923517, 76.3019267], [9.9930340, 76.3018243],
+                [9.9933433, 76.3017846], [9.9944848, 76.3016587], [9.9954740, 76.3014861],
+                [9.9960327, 76.3013843], [9.995949, 76.301045],  [9.995984, 76.300702],
+                [9.996049, 76.300507],   [9.996170, 76.300286],  [9.996393, 76.300069],
+                [9.996601, 76.299934],   [9.996774, 76.299817],  [9.996932, 76.299788],
+                [9.997055, 76.299734],   [9.997190, 76.299701],  [9.997459, 76.299668],
+                [9.997637, 76.299723],   [9.997809, 76.299777],  [9.997974, 76.299850],
+                [9.998127, 76.299928],   [9.998211, 76.300093],  [9.998417, 76.300106],
+                [9.998593, 76.300155],   [9.998847, 76.300200],  [9.999005, 76.300155],
+                [9.999190, 76.300075],   [9.999422, 76.300012],  [9.999607, 76.299932],
+                [9.999767, 76.299871],   [10.000012, 76.299828], [10.000273, 76.299730],
+                [10.000505, 76.299541],  [10.000501, 76.299491], [10.000501, 76.299449],
+                [10.000494, 76.299395],  [10.000481, 76.299358], [10.000428, 76.299286],
+                [10.000388, 76.299206],  [10.000339, 76.299124], [10.000291, 76.299052],
+                [10.000237, 76.298974],  [10.000187, 76.298901], [10.000127, 76.298830],
+                [10.000082, 76.298750],  [10.000044, 76.298720], [9.999999, 76.298640],
+                [9.999942, 76.298569],   [9.999890, 76.298492],  [9.999840, 76.298418],
+                [9.999800, 76.298350],   [9.999752, 76.298277],  [9.999709, 76.298195],
+                [9.999653, 76.298121],   [9.999604, 76.298046],  [9.999553, 76.297969],
+                [9.999494, 76.297899],   [9.999440, 76.297826],  [9.999388, 76.297754],
+                [9.999338, 76.297684],   [9.999308, 76.297643],  [9.999050, 76.297395],
+                [9.998701, 76.296933],   [9.998461, 76.296715],  [9.998151, 76.296272],
+                [9.997899, 76.295942],   [9.997535, 76.295483],  [9.997184, 76.295091],
+                [9.996841, 76.294657],   [9.996584, 76.294248],  [9.996214, 76.293760],
+                [9.995830, 76.293217],   [9.995488, 76.292784],  [9.995261, 76.292505],
+                [9.994999, 76.292152],   [9.994522, 76.291710],  [9.994255, 76.291447],
+                [9.993959, 76.291144],   [9.993594, 76.290828],  [9.993282, 76.290505],
+                [9.992954, 76.290205],   [9.992637, 76.289848],  [9.992308, 76.289544],
+                [9.992013, 76.289158],   [9.991697, 76.288828],  [9.991345, 76.288409],
+                [9.991167, 76.288159],   [9.990960, 76.287916],  [9.990943, 76.287892],
+                [9.990926, 76.287882],   [9.990900, 76.287883],  [9.990806, 76.287930],
+                [9.990567, 76.288044],   [9.990142, 76.288229],  [9.989760, 76.288393],
+                [9.989333, 76.288536],   [9.989032, 76.288637],  [9.989014, 76.288632],
+                [9.988995, 76.288633],   [9.988975, 76.288592],  [9.988939, 76.288533],
+                [9.988925, 76.288512],   [9.988907, 76.288507],  [9.988893, 76.288516],
+                [9.988881, 76.288513],   [9.988870, 76.288516],  [9.988857, 76.288509],
+                [9.988844, 76.288454],   [9.988841, 76.288397],  [9.988836, 76.288385],
+                [9.988826, 76.288375],   [9.988078, 76.288166]
+            ]
+        },
+        aster: {
+            name: 'Aster Medcity',
+            color: '#0099ff',
+            coordinates: [
+                [9.9908649, 76.3021516], [9.9911956, 76.3021332], [9.9916629, 76.3020623],
+                [9.9922232, 76.3019409], [9.9923517, 76.3019267], [9.9930340, 76.3018243],
+                [9.9933433, 76.3017846], [9.9944848, 76.3016587], [9.9954740, 76.3014861],
+                [9.9960327, 76.3013843], [9.995963, 76.301266],   [9.995954, 76.301249],
+                [9.995961, 76.301227],   [9.995958, 76.301195],   [9.995948, 76.301154],
+                [9.995940, 76.301109],   [9.995929, 76.301016],   [9.995930, 76.300971],
+                [9.995936, 76.300918],   [9.995930, 76.300875],   [9.995936, 76.300845],
+                [9.995949, 76.300790],   [9.995962, 76.300726],   [9.995982, 76.300656],
+                [9.996002, 76.300610],   [9.996013, 76.300565],   [9.996028, 76.300528],
+                [9.996051, 76.300481],   [9.996117, 76.300335],   [9.996162, 76.300264],
+                [9.996207, 76.300202],   [9.996271, 76.300136],   [9.996338, 76.300073]
+            ]
+        },
+        rennai: {
+            name: 'Rennai Hospital',
+            color: '#ffa502',
+            coordinates: [
+                [9.9908649, 76.3021516], [9.9911956, 76.3021332], [9.9916629, 76.3020623],
+                [9.9922232, 76.3019409], [9.9923517, 76.3019267], [9.9930340, 76.3018243],
+                [9.9933433, 76.3017846], [9.9944848, 76.3016587], [9.9954740, 76.3014861],
+                [9.9960327, 76.3013843], [9.995963, 76.301266],   [9.995954, 76.301249]
+            ]
+        }
+    };
+
+    // ══════════════════════════════════════════════════
+    //  SIGNALS
+    // ══════════════════════════════════════════════════
+    const SIGNALS = [
+        { id: 1, position: [9.9954740, 76.3014861], name: 'S1', roads: 'MG Road' },
+        { id: 2, position: [9.9965,    76.3010],    name: 'S2', roads: 'Main Junction' },
+        { id: 3, position: [9.9950,    76.2950],    name: 'S3', roads: 'Central Crossing' },
+        { id: 4, position: [9.9920,    76.2890],    name: 'S4', roads: 'Hospital Road' },
+        { id: 5, position: [9.9850,    76.2800],    name: 'S5', roads: 'Final Approach' }
+    ];
+
+    // ══════════════════════════════════════════════════
+    //  STATE
+    // ══════════════════════════════════════════════════
+    let map             = null;
+    let selectedRoute   = null;
+    let currentPosition = CENTER;
+    let ambulanceMarker = null;
+    let polyline        = null;
+    let signalMarkers   = [];
+    let potholeMarkers  = [];
+    let isSimulating    = false;
+    let animationId     = null;
+    let totalDistance   = 0;
+    let segmentIndex    = 0;
+    let signalDistances = {};
+
+    let distanceCovered = 0;
+    let lastTimestamp   = null;
+    let effectiveSpeed  = SPEED_NORMAL;
+
+    SIGNALS.forEach(s => { signalDistances[s.id] = Infinity; });
+
+    // ══════════════════════════════════════════════════
+    //  UTILITY
+    // ══════════════════════════════════════════════════
+    function getDistance(lat1, lng1, lat2, lng2) {
+        const R    = 6371000;
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLng = (lng2 - lng1) * Math.PI / 180;
+        const a    = Math.sin(dLat/2) ** 2 +
+                     Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) *
+                     Math.sin(dLng/2) ** 2;
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    function getTotalDistance(coords) {
+        let total = 0;
+        for (let i = 0; i < coords.length - 1; i++)
+            total += getDistance(coords[i][0], coords[i][1], coords[i+1][0], coords[i+1][1]);
+        return total;
+    }
+
+    // ══════════════════════════════════════════════════
+    //  POTHOLE GENERATOR  ← key change
+    // ══════════════════════════════════════════════════
+    function generatePotholes(routeCoords) {
+        const total    = routeCoords.length;
+        const minIdx   = Math.max(1, Math.floor(total * 0.2));   // skip first 20%
+        const maxIdx   = Math.min(total - 2, Math.floor(total * 0.85)); // skip last 15%
+        const result   = [];
+        const severities = ['moderate', 'severe'];
+        let attempts   = 0;
+
+        while (result.length < 2 && attempts < 200) {
+            attempts++;
+            const idx = Math.floor(Math.random() * (maxIdx - minIdx + 1)) + minIdx;
+            const candidate = routeCoords[idx];
+
+            // Ensure new pothole is at least 200m from any already picked
+            let tooClose = false;
+            for (const p of result) {
+                if (getDistance(candidate[0], candidate[1], p.position[0], p.position[1]) < 200) {
+                    tooClose = true;
+                    break;
+                }
+            }
+            if (tooClose) continue;
+
+            result.push({
+                id:       result.length + 1,
+                position: [candidate[0], candidate[1]],
+                severity: severities[result.length], // P1=moderate, P2=severe
+                label:    `P${result.length + 1}`
+            });
+        }
+        return result;
+    }
+
+    // ══════════════════════════════════════════════════
+    //  SIGNALS
+    // ══════════════════════════════════════════════════
+    function getSignalState(d) {
+        if (d < SIGNAL_DISTANCES.NEAR)   return 'near';
+        if (d < SIGNAL_DISTANCES.MEDIUM) return 'medium';
+        return 'far';
+    }
+
+    function getSignalEmoji(state) {
+        return state === 'near' ? '🟢' : state === 'medium' ? '🟡' : '🔴';
+    }
+
+    function updateSignalsDisplay() {
+        const grid = document.getElementById('signalsGrid');
+        grid.innerHTML = '';
+        SIGNALS.forEach(signal => {
+            const d     = signalDistances[signal.id];
+            const state = getSignalState(d);
+            const emoji = getSignalEmoji(state);
+            const disp  = d === Infinity ? 'N/A'
+                        : d < 1000 ? `${d.toFixed(0)}m` : `${(d/1000).toFixed(2)}km`;
+            const div   = document.createElement('div');
+            div.className = `signal-display ${state}`;
+            div.innerHTML = `
+                <div class="signal-light ${state === 'near' ? 'pulse' : ''}">${emoji}</div>
+                <div class="signal-label">${signal.name}</div>
+                <div class="distance-text">${disp}</div>`;
+            grid.appendChild(div);
+        });
+    }
+
+    function updateSignalMarkers() {
+        signalMarkers.forEach(m => map.removeLayer(m));
+        signalMarkers = [];
+        SIGNALS.forEach(signal => {
+            const d     = signalDistances[signal.id];
+            const state = getSignalState(d);
+            const emoji = getSignalEmoji(state);
+            const disp  = d < Infinity
+                ? (d < 1000 ? d.toFixed(0)+'m' : (d/1000).toFixed(2)+'km') : 'N/A';
+            const m = L.marker(signal.position, {
+                icon: L.divIcon({
+                    html: `<div style="font-size:32px;filter:drop-shadow(0 2px 8px rgba(0,0,0,0.6));
+                                animation:${state === 'near' ? 'pulse 0.8s infinite' : 'none'};">
+                               ${emoji}
+                           </div>`,
+                    iconSize: [40, 40], iconAnchor: [20, 20]
+                })
+            }).addTo(map);
+            m.bindPopup(`<strong>${signal.name}</strong><br>${signal.roads}<br>Distance: ${disp}<br>State: ${state.toUpperCase()}`);
+            signalMarkers.push(m);
+        });
+    }
+
+    // ══════════════════════════════════════════════════
+    //  POTHOLES
+    // ══════════════════════════════════════════════════
+    function getPotholeColor(severity) {
+        return severity === 'severe'   ? '#d32f2f'
+             : severity === 'moderate' ? '#ff9800'
+             : '#ffeb3b';
+    }
+
+    function getPotholeBorderColor(severity) {
+        return severity === 'severe'   ? '#b71c1c'
+             : severity === 'moderate' ? '#e65100'
+             : '#fbc02d';
+    }
+
+    function getSpeedNearPothole(pos) {
+        let speed = SPEED_NORMAL;
+        POTHOLES.forEach(p => {
+            const d = getDistance(pos[0], pos[1], p.position[0], p.position[1]);
+            if (d < POTHOLE_RADIUS) {
+                if (p.severity === 'severe')   speed = Math.min(speed, SPEED_SEVERE);
+                if (p.severity === 'moderate') speed = Math.min(speed, SPEED_MODERATE);
+            }
+        });
+        return speed;
+    }
+
+    function getNearbyPothole(pos) {
+        for (const p of POTHOLES) {
+            if (getDistance(pos[0], pos[1], p.position[0], p.position[1]) < POTHOLE_RADIUS)
+                return p;
+        }
+        return null;
+    }
+
+    function drawPotholeMarkers() {
+        potholeMarkers.forEach(m => map.removeLayer(m));
+        potholeMarkers = [];
+
+        POTHOLES.forEach(p => {
+            const circle = L.circle(p.position, {
+                radius:      POTHOLE_RADIUS,
+                color:       getPotholeBorderColor(p.severity),
+                fillColor:   getPotholeColor(p.severity),
+                fillOpacity: 0.2,
+                weight:      2,
+                dashArray:   '6,4'
+            }).addTo(map);
+            circle.bindPopup(
+                `<strong>🕳️ Pothole ${p.label}</strong><br>
+                 Severity: <b>${p.severity.toUpperCase()}</b><br>
+                 Speed limit: ${p.severity === 'severe'
+                     ? (SPEED_SEVERE * 3.6).toFixed(0)
+                     : (SPEED_MODERATE * 3.6).toFixed(0)} km/h`
+            );
+
+            const marker = L.marker(p.position, {
+                icon: L.divIcon({
+                    html: `<div style="font-size:28px;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.7));">🕳️</div>`,
+                    iconSize: [32, 32], iconAnchor: [16, 16]
+                })
+            }).addTo(map);
+            marker.bindPopup(
+                `<strong>🕳️ ${p.label}</strong><br>
+                 Severity: <b style="color:${getPotholeColor(p.severity)}">${p.severity.toUpperCase()}</b><br>
+                 Slowdown zone: ${POTHOLE_RADIUS}m radius`
+            );
+
+            potholeMarkers.push(circle, marker);
+        });
+    }
+
+    function updatePotholeAlert(nearby) {
+        const el = document.getElementById('potholeAlert');
+        if (!nearby) {
+            el.style.display = 'none';
+            el.className     = 'pothole-alert';
+            return;
+        }
+        el.style.display = 'block';
+        el.className     = `pothole-alert ${nearby.severity}`;
+        el.innerHTML     = nearby.severity === 'severe'
+            ? `🕳️ SEVERE POTHOLE (${nearby.label}) — Speed reduced to ${(SPEED_SEVERE * 3.6).toFixed(0)} km/h`
+            : `🕳️ POTHOLE AHEAD (${nearby.label}) — Speed reduced to ${(SPEED_MODERATE * 3.6).toFixed(0)} km/h`;
+    }
+
+    // ══════════════════════════════════════════════════
+    //  ANIMATION
+    // ══════════════════════════════════════════════════
+    function animate(timestamp) {
+        if (!isSimulating || !selectedRoute) return;
+
+        if (lastTimestamp === null) lastTimestamp = timestamp;
+        const delta   = (timestamp - lastTimestamp) / 1000;
+        lastTimestamp = timestamp;
+
+        effectiveSpeed   = getSpeedNearPothole(currentPosition);
+        distanceCovered += delta * effectiveSpeed;
+
+        let covered = 0;
+        const route = ROUTE_DATA[selectedRoute].coordinates;
+
+        for (let i = 0; i < route.length - 1; i++) {
+            const segDist = getDistance(route[i][0], route[i][1], route[i+1][0], route[i+1][1]);
+            if (covered + segDist < distanceCovered) {
+                covered += segDist;
+                segmentIndex = i + 1;
+            } else {
+                const ratio = (distanceCovered - covered) / segDist;
+                currentPosition = [
+                    route[i][0] + (route[i+1][0] - route[i][0]) * ratio,
+                    route[i][1] + (route[i+1][1] - route[i][1]) * ratio
+                ];
+                break;
+            }
+        }
+
+        if (ambulanceMarker) ambulanceMarker.setLatLng(currentPosition);
+
+        const progress = (segmentIndex / (route.length - 1)) * 100;
+        document.getElementById('progressFill').style.width  = progress + '%';
+        document.getElementById('progressValue').textContent = progress.toFixed(1) + '%';
+
+        const nearPH     = effectiveSpeed < SPEED_NORMAL;
+        const speedColor = effectiveSpeed === SPEED_SEVERE   ? '#ff4757'
+                         : effectiveSpeed === SPEED_MODERATE  ? '#ffa502'
+                         : 'var(--primary)';
+        const speedBg    = effectiveSpeed === SPEED_SEVERE   ? 'rgba(255,71,87,0.2)'
+                         : effectiveSpeed === SPEED_MODERATE  ? 'rgba(255,165,2,0.2)'
+                         : 'rgba(0,208,132,0.2)';
+        document.getElementById('speedValue').innerHTML =
+            `<span class="speed-display"
+                   style="border-color:${speedColor};color:${speedColor};background:${speedBg};">
+                 ${(effectiveSpeed * 3.6).toFixed(0)} km/h${nearPH ? ' ⚠️' : ''}
+             </span>`;
+
+        updatePotholeAlert(getNearbyPothole(currentPosition));
+
+        SIGNALS.forEach(signal => {
+            signalDistances[signal.id] = getDistance(
+                currentPosition[0], currentPosition[1],
+                signal.position[0], signal.position[1]
+            );
+        });
+
+        updateSignalsDisplay();
+        updateSignalMarkers();
+
+        const distToEnd = getDistance(
+            currentPosition[0], currentPosition[1],
+            route[route.length - 1][0], route[route.length - 1][1]
+        );
+
+        document.getElementById('statusText').innerHTML = `
+            <div style="margin-bottom:8px;">🚑 In Transit</div>
+            <div style="font-size:11px;color:var(--text-secondary);">
+                Distance to Hospital: ${distToEnd < 1000
+                    ? distToEnd.toFixed(0) + 'm'
+                    : (distToEnd/1000).toFixed(2) + 'km'}
+            </div>`;
+
+        if (distToEnd < ARRIVAL_THRESHOLD) {
+            isSimulating  = false;
+            lastTimestamp = null;
+            updatePotholeAlert(null);
+            document.getElementById('statusText').innerHTML = `
+                <div style="color:#2ed573;">✅ ARRIVED!</div>
+                <div style="font-size:11px;margin-top:8px;">Patient safely delivered</div>`;
+            setTimeout(() => alert('🎉 Ambulance successfully arrived at hospital!\n\n✅ Mission Complete!'), 500);
+        } else {
+            animationId = requestAnimationFrame(animate);
+        }
+    }
+
+    // ══════════════════════════════════════════════════
+    //  MAP INIT
+    // ══════════════════════════════════════════════════
+    function initMap() {
+        map = L.map('map').setView(CENTER, ZOOM);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors', maxZoom: 19
+        }).addTo(map);
+
+        const buttonsContainer = document.getElementById('routeButtons');
+        Object.entries(ROUTE_DATA).forEach(([key, route]) => {
+            const btn  = document.createElement('button');
+            btn.className     = 'route-btn';
+            const dist        = getTotalDistance(route.coordinates);
+            const time        = Math.ceil(dist / SPEED_NORMAL / 60);
+            btn.textContent   = `${route.name}\n${(dist/1000).toFixed(1)}km • ${time}min`;
+            btn.style.whiteSpace = 'pre-line';
+            btn.onclick       = () => selectRoute(key);
+            buttonsContainer.appendChild(btn);
+        });
+    }
+
+    // ══════════════════════════════════════════════════
+    //  SELECT ROUTE
+    // ══════════════════════════════════════════════════
+    function selectRoute(routeKey) {
+        selectedRoute = routeKey;
+        const route   = ROUTE_DATA[routeKey];
+        totalDistance = getTotalDistance(route.coordinates);
+
+        document.querySelectorAll('.route-btn').forEach(b => b.classList.remove('active'));
+        event.target.closest('.route-btn').classList.add('active');
+
+        if (polyline)        map.removeLayer(polyline);
+        if (ambulanceMarker) map.removeLayer(ambulanceMarker);
+        if (animationId)     cancelAnimationFrame(animationId);
+
+        polyline = L.polyline(route.coordinates, {
+            color: route.color, weight: 6, opacity: 0.85,
+            lineCap: 'round', lineJoin: 'round'
+        }).addTo(map);
+
+        ambulanceMarker = L.marker(route.coordinates[0], {
+            icon: L.divIcon({
+                html: `<div style="font-size:40px;filter:drop-shadow(0 2px 12px rgba(0,0,0,0.8));"
+                            class="ambulance-marker">🚑</div>`,
+                iconSize: [50, 50], iconAnchor: [25, 25]
+            })
+        }).addTo(map);
+
+        document.getElementById('infoPanel').style.display    = 'flex';
+        document.getElementById('signalSection').style.display = 'flex';
+        document.getElementById('distanceValue').textContent  = (totalDistance/1000).toFixed(2) + ' km';
+        document.getElementById('timeValue').textContent      = Math.ceil(totalDistance/SPEED_NORMAL/60) + ' min';
+        document.getElementById('speedValue').innerHTML       = `<span class="speed-display">54 km/h</span>`;
+        document.getElementById('progressValue').textContent  = '0%';
+        document.getElementById('progressFill').style.width   = '0%';
+        document.getElementById('statusText').textContent     = '🚑 Ready to Start';
+        document.getElementById('potholeAlert').style.display = 'none';
+
+        SIGNALS.forEach(signal => {
+            signalDistances[signal.id] = getDistance(
+                route.coordinates[0][0], route.coordinates[0][1],
+                signal.position[0], signal.position[1]
+            );
+        });
+
+        updateSignalsDisplay();
+        updateSignalMarkers();
+
+        // ── Generate fresh random potholes for this route, then draw ──
+        POTHOLES = generatePotholes(route.coordinates);
+        drawPotholeMarkers();
+
+        // Reset animation state
+        currentPosition = route.coordinates[0];
+        segmentIndex    = 0;
+        distanceCovered = 0;
+        lastTimestamp   = null;
+        isSimulating    = true;
+
+        animationId = requestAnimationFrame(animate);
+        map.fitBounds(polyline.getBounds().pad(0.15));
+    }
+
+    window.addEventListener('load', initMap);
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+# CGIP Pothole Detection — YOLOv12
+# Install: pip install -r requirements.txt
+
+ultralytics>=8.3.0    # Includes YOLOv12 support
+opencv-python>=4.8.0
+torch>=2.0.0
+torchvision>=0.15.0
+numpy>=1.24.0
+Pillow>=9.5.0

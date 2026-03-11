@@ -1,0 +1,6 @@
+# Create/edit backend/.gitignore and add:
+serviceAccountKey.json
+node_modules/
+uploads/
+outputs/
+__pycache__/

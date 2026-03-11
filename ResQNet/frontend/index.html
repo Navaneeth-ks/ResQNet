@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SafeNet — Smart Traffic Safety System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Mono:wght@700&display=swap" rel="stylesheet"/>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #080c14;
+      --bg2:        #0d1220;
+      --bg3:        #111827;
+      --surface:    #151c2c;
+      --surface2:   #1a2236;
+      --border:     #1e2d45;
+      --border2:    #243350;
+      --accent:     #3b82f6;
+      --accent2:    #6366f1;
+      --green:      #10b981;
+      --red:        #ef4444;
+      --orange:     #f59e0b;
+      --text1:      #f1f5f9;
+      --text2:      #94a3b8;
+      --text3:      #4b6080;
+      --glow-blue:  rgba(59,130,246,0.15);
+      --glow-green: rgba(16,185,129,0.15);
+      --glow-red:   rgba(239,68,68,0.15);
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text1);
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+    .app { min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* ── TOPBAR ── */
+    .topbar {
+      background: linear-gradient(90deg, #0d1220 0%, #111827 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo { display: flex; align-items: center; gap: 12px; }
+
+    .logo-icon {
+      width: 40px; height: 40px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 0 20px rgba(59,130,246,0.4);
+    }
+
+    .logo-text {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #f1f5f9, #94a3b8);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      color: transparent;
+    }
+
+    .logo-sub { font-size: 11px; color: var(--text3); font-weight: 400; margin-top: -2px; }
+
+    .topbar-right { display: flex; align-items: center; gap: 16px; }
+
+    .status-pill {
+      display: flex; align-items: center; gap: 7px;
+      background: rgba(16,185,129,0.1);
+      border: 1px solid rgba(16,185,129,0.25);
+      padding: 5px 12px; border-radius: 20px;
+      font-size: 12px; font-weight: 500; color: var(--green);
+    }
+
+    .status-dot {
+      width: 7px; height: 7px;
+      background: var(--green); border-radius: 50%;
+      animation: blink 2s infinite;
+    }
+
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    .time-display {
+      font-family: 'Space Mono', monospace;
+      font-size: 12px; color: var(--text3);
+    }
+
+    /* ── MAIN ── */
+    .main {
+      flex: 1;
+      padding: 28px 32px;
+      max-width: 1000px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    /* ── TABS ── */
+    .tab-bar {
+      display: flex; gap: 4px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 5px;
+      margin-bottom: 28px;
+    }
+
+    .tab-btn {
+      flex: 1; padding: 11px 16px;
+      border: none; background: transparent;
+      color: var(--text3); border-radius: 10px;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      font-size: 13px; font-weight: 600;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      transition: all 0.25s ease;
+      white-space: nowrap;
+    }
+
+    .tab-btn:hover:not(.active) { color: var(--text2); background: var(--surface2); }
+
+    .tab-btn.active {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(59,130,246,0.35);
+    }
+
+    .tab-btn .tab-icon { font-size: 16px; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── CARDS ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      margin-bottom: 20px;
+      transition: border-color 0.2s;
+    }
+
+    .card:hover { border-color: var(--border2); }
+
+    .card-title {
+      font-size: 12px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 1px;
+      color: var(--text3); margin-bottom: 16px;
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    .card-title::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+
+    /* ── FORM ── */
+    .field { margin-bottom: 16px; }
+
+    .field label {
+      display: block; font-size: 12px; font-weight: 600;
+      color: var(--text2); margin-bottom: 7px; letter-spacing: 0.3px;
+    }
+
+    .field input[type="text"],
+    .field input[type="file"] {
+      width: 100%; padding: 10px 14px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      color: var(--text1);
+      font-family: 'Inter', sans-serif;
+      font-size: 13px; outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .field input[type="text"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+    }
+
+    .field input[type="file"] { padding: 8px 14px; cursor: pointer; }
+
+    .field input[type="file"]::file-selector-button {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: white; border: none;
+      padding: 6px 14px; border-radius: 6px;
+      font-size: 12px; font-weight: 600;
+      cursor: pointer; margin-right: 12px;
+      transition: opacity 0.2s;
+    }
+
+    .field input[type="file"]::file-selector-button:hover { opacity: 0.85; }
+
+    /* ── BUTTONS ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 11px 24px; border: none; border-radius: 9px;
+      font-family: 'Inter', sans-serif;
+      font-size: 13px; font-weight: 700;
+      cursor: pointer; transition: all 0.2s ease; letter-spacing: 0.2px;
+    }
+
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none !important; }
+    .btn:not(:disabled):hover { transform: translateY(-1px); }
+    .btn:not(:disabled):active { transform: translateY(0); }
+
+    .btn-red {
+      background: linear-gradient(135deg, #dc2626, #b91c1c);
+      color: white; box-shadow: 0 4px 15px rgba(239,68,68,0.3);
+    }
+
+    .btn-orange {
+      background: linear-gradient(135deg, #d97706, #b45309);
+      color: white; box-shadow: 0 4px 15px rgba(245,158,11,0.3);
+    }
+
+    .btn-blue {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: white; box-shadow: 0 4px 15px rgba(59,130,246,0.3);
+    }
+
+    .btn-slate {
+      background: var(--surface2); color: var(--text2);
+      border: 1px solid var(--border2);
+    }
+
+    .btn-slate:not(:disabled):hover { background: var(--bg3); color: var(--text1); }
+
+    /* ── PROGRESS ── */
+    .progress-wrap { display: none; margin: 14px 0; }
+    .progress-wrap.show { display: block; }
+
+    .progress-track {
+      width: 100%; height: 6px;
+      background: var(--bg3); border-radius: 4px; overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%; width: 0%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2), var(--green));
+      background-size: 200% 100%;
+      border-radius: 4px; transition: width 0.2s ease;
+      animation: shimmer 2s infinite;
+    }
+
+    @keyframes shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    .progress-label {
+      font-size: 11px; color: var(--text3);
+      margin-top: 6px; font-family: 'Space Mono', monospace;
+    }
+
+    /* ── RESULT BOX ── */
+    .result-box { display: none; padding: 14px 16px; border-radius: 10px; font-size: 13px; margin-top: 16px; }
+    .result-box.show    { display: block; }
+    .result-box.info    { background: rgba(59,130,246,0.1);  border: 1px solid rgba(59,130,246,0.25);  color: #93c5fd; }
+    .result-box.success { background: rgba(16,185,129,0.1);  border: 1px solid rgba(16,185,129,0.25);  color: #6ee7b7; }
+    .result-box.error   { background: rgba(239,68,68,0.1);   border: 1px solid rgba(239,68,68,0.25);   color: #fca5a5; }
+
+    pre {
+      background: var(--bg); border: 1px solid var(--border);
+      padding: 12px; border-radius: 8px;
+      font-size: 11.5px; margin-top: 10px;
+      overflow-x: auto; white-space: pre-wrap;
+      color: var(--text2); font-family: 'Space Mono', monospace;
+    }
+
+    /* ── STAT CARDS ── */
+    .stat-cards { display: flex; gap: 12px; flex-wrap: wrap; margin: 16px 0; }
+
+    .stat-card {
+      flex: 1; min-width: 100px;
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 10px; padding: 14px 16px;
+      text-align: center; transition: border-color 0.2s;
+    }
+
+    .stat-card:hover { border-color: var(--border2); }
+
+    .stat-card .val {
+      font-size: 22px; font-weight: 700;
+      font-family: 'Space Mono', monospace;
+      color: var(--accent); line-height: 1;
+    }
+
+    .stat-card .lbl {
+      font-size: 11px; color: var(--text3);
+      margin-top: 5px; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+
+    /* ── OUTPUT MEDIA ── */
+    .output-media {
+      display: none; margin-top: 16px;
+      border: 1px solid var(--border); border-radius: 12px;
+      overflow: hidden; background: var(--bg);
+    }
+
+    .output-media.show { display: block; }
+
+    .output-media img,
+    .output-media video {
+      width: 100%; display: block;
+      max-height: 500px; object-fit: contain; background: #000;
+    }
+
+    .output-media-bar {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 14px; background: var(--surface);
+      border-top: 1px solid var(--border);
+      font-size: 12px; color: var(--text3);
+    }
+
+    .output-media-bar a {
+      color: var(--accent); text-decoration: none;
+      font-weight: 600; font-size: 12px;
+    }
+
+    .output-media-bar a:hover { text-decoration: underline; }
+
+    /* ── BADGES ── */
+    .badge {
+      display: inline-block; padding: 3px 10px;
+      border-radius: 20px; font-size: 11px; font-weight: 700; margin-right: 5px;
+    }
+
+    .badge.low    { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+    .badge.medium { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+    .badge.high   { background: rgba(239,68,68,0.15);  color: #f87171; border: 1px solid rgba(239,68,68,0.3);  }
+    .badge.found  { background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
+
+    /* ── SEVERITY ROW ── */
+    #pot-severity-row {
+      display: none; padding: 12px 14px;
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 9px; margin: 12px 0;
+      font-size: 12px; color: var(--text2);
+    }
+
+    /* ── SPINNER ── */
+    .spinner {
+      display: inline-block; width: 13px; height: 13px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white; border-radius: 50%;
+      animation: spin 0.7s linear infinite; vertical-align: middle;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── FIRESTORE BADGE ── */
+    .firestore-badge {
+      display: none; align-items: center; gap: 8px;
+      padding: 8px 14px;
+      background: rgba(16,185,129,0.1);
+      border: 1px solid rgba(16,185,129,0.25);
+      border-radius: 8px; font-size: 12px;
+      color: var(--green); font-weight: 600; margin-top: 12px;
+    }
+
+    .firestore-badge.show { display: flex; }
+
+    /* ── DIVIDER ── */
+    .divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+    /* ── PWD REPORT ── */
+    #pwd-report-wrap { display: none; margin-top: 24px; }
+
+    .report-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+
+    #pwd-report-card {
+      display: none; border: 1px solid var(--border2);
+      border-radius: 14px; overflow: hidden;
+    }
+
+    .report-header {
+      background: linear-gradient(135deg, #1e3a8a, #1e40af, #2563eb);
+      padding: 24px 28px; position: relative; overflow: hidden;
+    }
+
+    .report-header::before {
+      content: ''; position: absolute;
+      top: -40px; right: -40px;
+      width: 150px; height: 150px;
+      background: rgba(255,255,255,0.05); border-radius: 50%;
+    }
+
+    .report-header-icon { font-size: 2.5rem; margin-bottom: 8px; }
+    .report-header-title { font-size: 18px; font-weight: 700; color: white; }
+    .report-header-sub { font-size: 12px; color: rgba(255,255,255,0.65); margin-top: 3px; }
+
+    .report-alert {
+      background: rgba(239,68,68,0.12);
+      border-left: 4px solid var(--red);
+      padding: 12px 18px; font-size: 12.5px; color: #fca5a5;
+    }
+
+    .report-body { padding: 24px; background: var(--surface); }
+
+    .report-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 20px; }
+    .report-table td { padding: 12px 16px; border: 1px solid var(--border); }
+    .report-table tr:nth-child(odd)  td { background: var(--bg3); }
+    .report-table tr:nth-child(even) td { background: var(--surface2); }
+    .report-table .td-label { font-weight: 600; color: var(--text2); width: 36%; }
+    .report-table .td-value { color: var(--text1); }
+
+    .report-actions-box {
+      background: rgba(59,130,246,0.07);
+      border: 1px solid rgba(59,130,246,0.2);
+      border-radius: 10px; padding: 16px 18px;
+    }
+
+    .report-actions-box strong { color: #60a5fa; font-size: 13px; }
+
+    .report-actions-box ul {
+      margin: 10px 0 0; padding-left: 18px;
+      color: var(--text2); font-size: 12.5px; line-height: 2;
+    }
+
+    .report-footer {
+      border-top: 1px solid var(--border);
+      margin-top: 18px; padding-top: 14px;
+      font-size: 11px; color: var(--text3); text-align: center;
+    }
+
+    /* ── AMBULANCE IFRAME ── */
+    #ambulance-frame {
+      width: 100%; height: 660px;
+      border: 1px solid var(--border);
+      border-radius: 14px; display: block;
+    }
+
+    /* ── PRINT ── */
+    @media print {
+      .topbar, .tab-bar, .card-title, .field,
+      .btn, .progress-wrap, .result-box,
+      .output-media, .stat-cards, #pot-severity-row,
+      #pwd-report-wrap > .report-actions { display: none !important; }
+      .tab-panel { display: block !important; }
+      #pwd-report-wrap, #pwd-report-card { display: block !important; }
+      body { background: white; color: black; }
+      .report-body { background: white; }
+      .report-table td { border-color: #ccc; }
+      .report-table tr:nth-child(odd)  td { background: #f8f8f8; }
+      .report-table tr:nth-child(even) td { background: white; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ══ TOPBAR ══ -->
+  <header class="topbar">
+    <div class="logo">
+      <div class="logo-icon">🛡️</div>
+      <div>
+        <div class="logo-text">SafeNet</div>
+        <div class="logo-sub">Smart Traffic Safety System</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="status-pill">
+        <div class="status-dot"></div>
+        System Online
+      </div>
+      <div class="time-display" id="clock">--:--:--</div>
+    </div>
+  </header>
+
+  <!-- ══ MAIN ══ -->
+  <main class="main">
+
+    <!-- ══ TAB BAR ══ -->
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="accident">
+        <span class="tab-icon">🚨</span> Accident Detection
+      </button>
+      <button class="tab-btn" data-tab="pothole">
+        <span class="tab-icon">🕳️</span> Pothole Detection
+      </button>
+      <button class="tab-btn" data-tab="ambulance">
+        <span class="tab-icon">🚑</span> Ambulance Routing
+      </button>
+    </div>
+
+
+    <!-- ══════════════════════════════════════
+         TAB 1 — ACCIDENT DETECTION
+    ══════════════════════════════════════ -->
+    <div class="tab-panel active" id="panel-accident">
+
+      <div class="card">
+        <div class="card-title">⚙️ Configuration</div>
+        <div class="field">
+          <label>Backend API URL</label>
+          <input type="text" id="acc-api-url" value="/api/accident/detect"/>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📁 Upload Media</div>
+        <div class="field">
+          <label>Image or Video file</label>
+          <input type="file" id="acc-file-input" accept="image/*,video/*"/>
+        </div>
+
+        <div class="progress-wrap" id="acc-progress">
+          <div class="progress-track">
+            <div class="progress-bar-fill" id="acc-bar-fill"></div>
+          </div>
+          <div class="progress-label" id="acc-prog-label">Uploading…</div>
+        </div>
+
+        <button class="btn btn-red" id="acc-upload-btn" disabled>
+          🚨 Analyse Accident
+        </button>
+
+        <div class="firestore-badge" id="acc-firestore-badge">
+          ✅ Written to Firestore
+          <span id="acc-firestore-id"
+            style="font-family:'Space Mono',monospace;font-size:11px;opacity:0.7;"></span>
+        </div>
+      </div>
+
+      <div class="stat-cards" id="acc-stats" style="display:none;">
+        <div class="stat-card">
+          <div class="val" id="acc-s-detected">—</div>
+          <div class="lbl">Accident Detected</div>
+        </div>
+        <div class="stat-card">
+          <div class="val" id="acc-s-conf">—</div>
+          <div class="lbl">Avg Confidence</div>
+        </div>
+        <div class="stat-card">
+          <div class="val" id="acc-s-frames">—</div>
+          <div class="lbl">Frames Processed</div>
+        </div>
+      </div>
+
+      <div class="result-box info show" id="acc-result">
+        <strong>ℹ️ Awaiting upload.</strong> Select a file and click Analyse.
+      </div>
+      <div class="output-media" id="acc-output"></div>
+    </div>
+
+
+    <!-- ══════════════════════════════════════
+         TAB 2 — POTHOLE DETECTION
+    ══════════════════════════════════════ -->
+    <div class="tab-panel" id="panel-pothole">
+
+      <div class="card">
+        <div class="card-title">⚙️ Configuration</div>
+        <div class="field">
+          <label>Backend API URL</label>
+          <input type="text" id="pot-api-url" value="/api/pothole/detect"/>
+        </div>
+        <div class="field">
+          <label>📍 Road Location
+            <span style="color:var(--text3);font-weight:400;">(for PWD report)</span>
+          </label>
+          <input type="text" id="pot-location"
+            placeholder="e.g. NH66, Rāmamangalam near Junction"/>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📁 Upload Media</div>
+        <div class="field">
+          <label>Road image or video file</label>
+          <input type="file" id="pot-file-input" accept="image/*,video/*"/>
+        </div>
+
+        <div class="progress-wrap" id="pot-progress">
+          <div class="progress-track">
+            <div class="progress-bar-fill" id="pot-bar-fill"></div>
+          </div>
+          <div class="progress-label" id="pot-prog-label">Uploading…</div>
+        </div>
+
+        <button class="btn btn-orange" id="pot-upload-btn" disabled>
+          🕳️ Analyse Pothole
+        </button>
+
+        <div class="firestore-badge" id="pot-firestore-badge">
+          ✅ Written to Firestore
+          <span id="pot-firestore-id"
+            style="font-family:'Space Mono',monospace;font-size:11px;opacity:0.7;"></span>
+        </div>
+      </div>
+
+      <div class="stat-cards" id="pot-stats" style="display:none;">
+        <div class="stat-card">
+          <div class="val" id="pot-s-count">—</div>
+          <div class="lbl">Potholes Found</div>
+        </div>
+        <div class="stat-card">
+          <div class="val" id="pot-s-low">—</div>
+          <div class="lbl">Low Severity</div>
+        </div>
+        <div class="stat-card">
+          <div class="val" id="pot-s-med">—</div>
+          <div class="lbl">Medium Severity</div>
+        </div>
+        <div class="stat-card">
+          <div class="val" id="pot-s-high">—</div>
+          <div class="lbl">High Severity</div>
+        </div>
+      </div>
+
+      <div id="pot-severity-row"></div>
+
+      <div class="result-box info show" id="pot-result">
+        <strong>ℹ️ Awaiting upload.</strong> Select a file and click Analyse.
+      </div>
+      <div class="output-media" id="pot-output"></div>
+
+      <!-- ══ PWD REPORT ══ -->
+      <div id="pwd-report-wrap">
+        <div class="divider"></div>
+        <div class="report-actions">
+          <button class="btn btn-blue" id="pwd-report-btn">
+            📋 Generate PWD Report
+          </button>
+          <button class="btn btn-slate" id="pwd-print-btn" style="display:none;">
+            🖨️ Print / Save PDF
+          </button>
+        </div>
+
+        <div id="pwd-report-card">
+          <div class="report-header">
+            <div class="report-header-icon">🕳️</div>
+            <div class="report-header-title">PWD Pothole Alert Report</div>
+            <div class="report-header-sub">
+              Auto-generated · SafeNet Smart Traffic Safety System
+            </div>
+          </div>
+          <div class="report-alert">
+            ⚠️ <strong>Immediate Action Required:</strong>
+            AI-based road analysis has detected potholes requiring urgent attention.
+          </div>
+          <div class="report-body">
+            <table class="report-table">
+              <tr>
+                <td class="td-label">📅 Report Time</td>
+                <td class="td-value" id="rpt-time"></td>
+              </tr>
+              <tr>
+                <td class="td-label">📍 Location</td>
+                <td class="td-value" id="rpt-location"></td>
+              </tr>
+              <tr>
+                <td class="td-label">🕳️ Potholes Detected</td>
+                <td class="td-value" id="rpt-count"></td>
+              </tr>
+              <tr>
+                <td class="td-label">⚠️ Overall Severity</td>
+                <td class="td-value" id="rpt-severity"></td>
+              </tr>
+              <tr>
+                <td class="td-label">📊 Severity Breakdown</td>
+                <td class="td-value" id="rpt-breakdown"></td>
+              </tr>
+              <tr>
+                <td class="td-label">⏱️ Video Analysed</td>
+                <td class="td-value" id="rpt-seconds"></td>
+              </tr>
+              <tr>
+                <td class="td-label">🆔 Report ID</td>
+                <td class="td-value" id="rpt-id"
+                  style="font-family:'Space Mono',monospace;font-size:12px;
+                         color:var(--text3);"></td>
+              </tr>
+            </table>
+
+            <div class="report-actions-box">
+              <strong>📋 Recommended Actions:</strong>
+              <ul>
+                <li>Dispatch road inspection team to the reported location immediately</li>
+                <li>Prioritise
+                  <strong style="color:#f87171;">High severity</strong>
+                  potholes for urgent repair
+                </li>
+                <li>Place warning signs / barricades if safety risk exists</li>
+                <li>Update repair schedule in PWD maintenance portal</li>
+              </ul>
+            </div>
+
+            <div class="report-footer">
+              SafeNet Smart Traffic Safety System &nbsp;|&nbsp;
+              Auto-generated report — Please do not reply
+            </div>
+          </div>
+        </div><!-- /pwd-report-card -->
+      </div><!-- /pwd-report-wrap -->
+
+    </div><!-- /panel-pothole -->
+
+
+    <!-- ══════════════════════════════════════
+         TAB 3 — AMBULANCE ROUTING
+    ══════════════════════════════════════ -->
+    <div class="tab-panel" id="panel-ambulance">
+      <iframe
+        id="ambulance-frame"
+        src="emergency_routing_advanced.html"
+        loading="lazy">
+      </iframe>
+    </div>
+
+  </main>
+</div>
+
+
+<!-- ══════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════ -->
+<script>
+
+/* ── Live clock ── */
+function updateClock() {
+  document.getElementById('clock').textContent =
+    new Date().toLocaleTimeString('en-IN', { hour12: false });
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+
+/* ── Tab switching ── */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+
+/* ── Output media ── */
+function renderOutputMedia(containerId, data) {
+  const box = document.getElementById(containerId);
+  if (!data.output_url) { box.classList.remove('show'); return; }
+  const isVideo = /\.(mp4|avi|mov|mkv)$/i.test(data.output_url);
+  box.innerHTML = `
+    ${isVideo
+      ? `<video src="${data.output_url}" controls autoplay muted></video>`
+      : `<img src="${data.output_url}" alt="Detection output"/>`}
+    <div class="output-media-bar">
+      <span>📁 Annotated Output</span>
+      <a href="${data.output_url}" download target="_blank">⬇ Download</a>
+    </div>`;
+  box.classList.add('show');
+}
+
+
+/* ── Accident stats ── */
+function renderAccidentStats(data) {
+  document.getElementById('acc-stats').style.display = 'flex';
+  const detEl = document.getElementById('acc-s-detected');
+  detEl.textContent = data.detected ? '⚠️ YES' : '✅ NO';
+  detEl.style.color = data.detected ? 'var(--red)' : 'var(--green)';
+  document.getElementById('acc-s-conf').textContent =
+    data.confidence ? (data.confidence * 100).toFixed(1) + '%' : '—';
+  document.getElementById('acc-s-frames').textContent = data.frames_processed ?? 1;
+
+  if (data.firestore_written && data.firestore_id) {
+    document.getElementById('acc-firestore-id').textContent = '· ID: ' + data.firestore_id;
+    document.getElementById('acc-firestore-badge').classList.add('show');
+  }
+}
+
+
+/* ── Pothole stats ── */
+function renderPotholeStats(data) {
+  document.getElementById('pot-stats').style.display = 'flex';
+  document.getElementById('pot-s-count').textContent = data.potholes_count ?? '—';
+  const sev = data.severity_breakdown || {};
+  document.getElementById('pot-s-low').textContent  = sev.Low    ?? '—';
+  document.getElementById('pot-s-med').textContent  = sev.Medium ?? '—';
+  document.getElementById('pot-s-high').textContent = sev.High   ?? '—';
+
+  const row      = document.getElementById('pot-severity-row');
+  const dominant = data.severity || '—';
+  row.style.display = 'block';
+  row.innerHTML = `
+    Overall severity: <span class="badge ${dominant.toLowerCase()}">${dominant}</span>
+    <span class="badge low">Low: ${sev.Low ?? 0}</span>
+    <span class="badge medium">Med: ${sev.Medium ?? 0}</span>
+    <span class="badge high">High: ${sev.High ?? 0}</span>
+    <span class="badge found">Total: ${data.potholes_count ?? 0}</span>`;
+
+  if (data.firestore_written && data.firestore_id) {
+    document.getElementById('pot-firestore-id').textContent = '· ID: ' + data.firestore_id;
+    document.getElementById('pot-firestore-badge').classList.add('show');
+  }
+
+  window.lastPotholeData = data;
+  document.getElementById('pwd-report-wrap').style.display  = 'block';
+  document.getElementById('pwd-report-card').style.display  = 'none';
+  document.getElementById('pwd-print-btn').style.display    = 'none';
+  document.getElementById('pwd-report-btn').textContent     = '📋 Generate PWD Report';
+}
+
+
+/* ── PWD Report ── */
+document.getElementById('pwd-report-btn').addEventListener('click', () => {
+  const data = window.lastPotholeData;
+  if (!data) return;
+
+  const ts       = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+  const reportId = 'RPT-' + Date.now().toString(36).toUpperCase();
+  const sev      = data.severity || '—';
+  const sev_br   = data.severity_breakdown || {};
+  const location = document.getElementById('pot-location').value.trim() || 'Not specified';
+
+  const sevMap = {
+    High:   { bg: 'rgba(239,68,68,0.15)',  color: '#f87171', border: 'rgba(239,68,68,0.3)'  },
+    Medium: { bg: 'rgba(245,158,11,0.15)', color: '#fbbf24', border: 'rgba(245,158,11,0.3)' },
+    Low:    { bg: 'rgba(16,185,129,0.15)', color: '#34d399', border: 'rgba(16,185,129,0.3)' }
+  };
+  const sc = sevMap[sev] || sevMap.Low;
+
+  document.getElementById('rpt-time').textContent     = ts;
+  document.getElementById('rpt-location').textContent = location;
+  document.getElementById('rpt-count').innerHTML =
+    `<strong style="font-size:1.15rem;color:var(--red);">${data.potholes_count ?? 0}</strong>`;
+  document.getElementById('rpt-severity').innerHTML =
+    `<span style="background:${sc.bg};color:${sc.color};border:1px solid ${sc.border};
+      padding:3px 14px;border-radius:20px;font-weight:700;font-size:12px;">${sev}</span>`;
+  document.getElementById('rpt-breakdown').innerHTML = `
+    <span class="badge low">🟢 Low: ${sev_br.Low ?? 0}</span>
+    <span class="badge medium">🟡 Med: ${sev_br.Medium ?? 0}</span>
+    <span class="badge high">🔴 High: ${sev_br.High ?? 0}</span>`;
+  document.getElementById('rpt-seconds').textContent =
+    data.seconds_analysed
+      ? `${data.seconds_analysed}s  (${data.frames_analysed ?? '—'} frames sampled)`
+      : 'Image — single frame';
+  document.getElementById('rpt-id').textContent = reportId;
+
+  document.getElementById('pwd-report-card').style.display = 'block';
+  document.getElementById('pwd-print-btn').style.display   = 'inline-flex';
+  document.getElementById('pwd-report-btn').textContent    = '🔄 Regenerate Report';
+
+  document.getElementById('pwd-report-card')
+    .scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+
+document.getElementById('pwd-print-btn').addEventListener('click', () => window.print());
+
+
+/* ── Uploader factory ── */
+function setupUploader({ inputId, progressFillId, labelId, btnId, resultId, apiUrlId, outputId, onSuccess }) {
+  const input = document.getElementById(inputId);
+  const fill  = document.getElementById(progressFillId);
+  const progW = fill.closest('.progress-wrap');
+  const lbl   = document.getElementById(labelId);
+  const btn   = document.getElementById(btnId);
+  const result= document.getElementById(resultId);
+
+  input.addEventListener('change', () => { btn.disabled = input.files.length === 0; });
+
+  btn.addEventListener('click', async () => {
+    if (!input.files.length) return;
+    const apiUrl  = document.getElementById(apiUrlId).value.trim();
+    btn.disabled  = true;
+    btn.innerHTML = '<span class="spinner"></span> Uploading…';
+    progW.classList.add('show');
+    fill.style.width   = '0%';
+    result.className   = 'result-box';
+    document.getElementById(outputId).classList.remove('show');
+
+    if (outputId === 'pot-output') {
+      document.getElementById('pwd-report-wrap').style.display = 'none';
+      document.getElementById('pwd-report-card').style.display = 'none';
+      document.getElementById('pot-firestore-badge').classList.remove('show');
+    }
+    if (outputId === 'acc-output') {
+      document.getElementById('acc-firestore-badge').classList.remove('show');
+    }
+
+    simulateProgress(fill, lbl, async () => {
+      try {
+        const formData = new FormData();
+        [...input.files].forEach(f => formData.append('file', f));
+
+        // attach GPS if available
+        await new Promise(resolve => {
+          if (!navigator.geolocation) return resolve();
+          navigator.geolocation.getCurrentPosition(
+            pos => {
+              formData.append('lat', pos.coords.latitude);
+              formData.append('lng', pos.coords.longitude);
+              resolve();
+            },
+            () => resolve(),
+            { timeout: 3000 }
+          );
+        });
+
+        const res  = await fetch(apiUrl, { method: 'POST', body: formData });
+        const data = await res.json();
+
+        if (res.ok) {
+          result.className = 'result-box show success';
+          result.innerHTML = `<strong>✅ Detection Complete</strong>
+<pre>${JSON.stringify(data, null, 2)}</pre>`;
+          if (onSuccess) onSuccess(data);
+          renderOutputMedia(outputId, data);
+        } else {
+          result.className = 'result-box show error';
+          result.innerHTML = `<strong>❌ API Error ${res.status}</strong>
+<pre>${JSON.stringify(data, null, 2)}</pre>`;
+        }
+      } catch (err) {
+        result.className = 'result-box show error';
+        result.innerHTML = `<strong>❌ Connection Failed</strong>
+<pre>Could not reach: ${apiUrl}
+
+Error: ${err.message}
+
+Make sure:
+  1. python api.py  → running on port 5000
+  2. node server.js → running on port 3000
+  3. CORS enabled in api.py</pre>`;
+      }
+      btn.disabled  = false;
+      btn.innerHTML = inputId.includes('acc') ? '🚨 Analyse Accident' : '🕳️ Analyse Pothole';
+    });
+  });
+}
+
+function simulateProgress(fill, lbl, onDone) {
+  let v = 0;
+  const id = setInterval(() => {
+    v += Math.random() * 16;
+    if (v >= 95) {
+      clearInterval(id);
+      fill.style.width = '100%';
+      lbl.textContent  = 'Processing with AI…';
+      setTimeout(onDone, 600);
+      return;
+    }
+    fill.style.width = Math.min(v, 94) + '%';
+    lbl.textContent  = `Uploading… ${Math.round(v)}%`;
+  }, 200);
+}
+
+setupUploader({
+  inputId: 'acc-file-input', progressFillId: 'acc-bar-fill',
+  labelId: 'acc-prog-label', btnId: 'acc-upload-btn',
+  resultId: 'acc-result',   apiUrlId: 'acc-api-url',
+  outputId: 'acc-output',   onSuccess: renderAccidentStats
+});
+
+setupUploader({
+  inputId: 'pot-file-input', progressFillId: 'pot-bar-fill',
+  labelId: 'pot-prog-label', btnId: 'pot-upload-btn',
+  resultId: 'pot-result',   apiUrlId: 'pot-api-url',
+  outputId: 'pot-output',   onSuccess: renderPotholeStats
+});
+
+</script>
+</body>
+</html>
