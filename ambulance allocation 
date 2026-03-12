@@ -1,0 +1,339 @@
+import { useState, useEffect, useRef } from "react";
+
+const initialAmbulances = [
+  { id: "AMB-001", driver: "Rajan K.", lat: 10.0261, lng: 76.3083, status: "available", fuel: 88, speed: 0, lastCall: "2 hrs ago" },
+  { id: "AMB-002", driver: "Priya M.", lat: 10.0412, lng: 76.3201, status: "available", fuel: 62, speed: 0, lastCall: "45 min ago" },
+  { id: "AMB-003", driver: "Suresh N.", lat: 10.0189, lng: 76.2944, status: "on-call", fuel: 71, speed: 48, lastCall: "Now" },
+  { id: "AMB-004", driver: "Anitha R.", lat: 10.0334, lng: 76.3155, status: "available", fuel: 95, speed: 0, lastCall: "1 hr ago" },
+  { id: "AMB-005", driver: "Biju T.", lat: 10.0098, lng: 76.3290, status: "maintenance", fuel: 40, speed: 0, lastCall: "3 hrs ago" },
+  { id: "AMB-006", driver: "Meera S.", lat: 10.0501, lng: 76.2870, status: "available", fuel: 55, speed: 0, lastCall: "20 min ago" },
+  { id: "AMB-007", driver: "Dino A.", lat: 10.0370, lng: 76.3010, status: "available", fuel: 79, speed: 0, lastCall: "1.5 hrs ago" },
+];
+
+const INCIDENT = { lat: 10.0300, lng: 76.3100, label: "Incident Site" };
+
+function haversine(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function score(amb) {
+  const dist = haversine(amb.lat, amb.lng, INCIDENT.lat, INCIDENT.lng);
+  if (amb.status !== "available") return Infinity;
+  // Lower score = better: distance weighted heavily, penalize low fuel
+  return dist * 1.0 + (100 - amb.fuel) * 0.05;
+}
+
+const STATUS_COLORS = {
+  available: "#00ff88",
+  "on-call": "#ffaa00",
+  maintenance: "#ff4455",
+};
+
+const STATUS_BG = {
+  available: "rgba(0,255,136,0.08)",
+  "on-call": "rgba(255,170,0,0.08)",
+  maintenance: "rgba(255,68,85,0.08)",
+};
+
+export default function App() {
+  const [ambulances, setAmbulances] = useState(initialAmbulances);
+  const [sortKey, setSortKey] = useState("score");
+  const [selectedId, setSelectedId] = useState(null);
+  const [dispatched, setDispatched] = useState(null);
+  const [tick, setTick] = useState(0);
+  const intervalRef = useRef(null);
+
+  // Simulate live GPS drift
+  useEffect(() => {
+    intervalRef.current = setInterval(() => {
+      setAmbulances((prev) =>
+        prev.map((a) =>
+          a.status === "available" || a.status === "on-call"
+            ? {
+                ...a,
+                lat: a.lat + (Math.random() - 0.5) * 0.0008,
+                lng: a.lng + (Math.random() - 0.5) * 0.0008,
+              }
+            : a
+        )
+      );
+      setTick((t) => t + 1);
+    }, 2000);
+    return () => clearInterval(intervalRef.current);
+  }, []);
+
+  const enriched = ambulances.map((a) => ({
+    ...a,
+    dist: haversine(a.lat, a.lng, INCIDENT.lat, INCIDENT.lng),
+    score: score(a),
+    eta: a.status === "available" ? Math.round((haversine(a.lat, a.lng, INCIDENT.lat, INCIDENT.lng) / 60) * 60) : null,
+  }));
+
+  const sorted = [...enriched].sort((a, b) => {
+    if (sortKey === "score") return a.score - b.score;
+    if (sortKey === "distance") return a.dist - b.dist;
+    if (sortKey === "fuel") return b.fuel - a.fuel;
+    if (sortKey === "eta") return (a.eta ?? 999) - (b.eta ?? 999);
+    return 0;
+  });
+
+  const nearest = sorted.find((a) => a.status === "available");
+
+  function handleDispatch(amb) {
+    setDispatched(amb.id);
+    setAmbulances((prev) =>
+      prev.map((a) => (a.id === amb.id ? { ...a, status: "on-call" } : a))
+    );
+    setTimeout(() => setDispatched(null), 3000);
+  }
+
+  return (
+    <div style={{
+      minHeight: "100vh",
+      background: "#060a0f",
+      color: "#e0eaf8",
+      fontFamily: "'Courier New', monospace",
+      padding: "0",
+      position: "relative",
+      overflow: "hidden",
+    }}>
+      {/* Grid background */}
+      <div style={{
+        position: "fixed", inset: 0, zIndex: 0,
+        backgroundImage: "linear-gradient(rgba(0,200,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,200,255,0.03) 1px, transparent 1px)",
+        backgroundSize: "40px 40px",
+        pointerEvents: "none",
+      }} />
+
+      {/* Header */}
+      <div style={{
+        borderBottom: "1px solid rgba(0,200,255,0.15)",
+        padding: "18px 32px",
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        background: "rgba(0,10,20,0.8)",
+        backdropFilter: "blur(12px)",
+        position: "relative", zIndex: 10,
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <div style={{
+            width: 36, height: 36, borderRadius: 8,
+            background: "linear-gradient(135deg,#00c8ff,#00ff88)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 18, fontWeight: 900, color: "#060a0f",
+          }}>🚑</div>
+          <div>
+            <div style={{ fontSize: 13, letterSpacing: 4, color: "#00c8ff", textTransform: "uppercase" }}>Emergency Dispatch</div>
+            <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: 1, marginTop: 1 }}>Nearest Ambulance Finder</div>
+          </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 20, fontSize: 12, color: "#4a7a9b" }}>
+          <div>
+            <span style={{ color: "#00ff88", fontSize: 10 }}>⬤ </span>
+            LIVE · TICK #{tick}
+          </div>
+          <div style={{
+            padding: "6px 14px", borderRadius: 6,
+            border: "1px solid rgba(0,200,255,0.3)",
+            background: "rgba(0,200,255,0.05)",
+            color: "#00c8ff", letterSpacing: 2, fontSize: 11,
+          }}>
+            📍 {INCIDENT.lat.toFixed(4)}, {INCIDENT.lng.toFixed(4)}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ position: "relative", zIndex: 1, maxWidth: 900, margin: "0 auto", padding: "28px 24px" }}>
+
+        {/* Best match banner */}
+        {nearest && (
+          <div style={{
+            background: "linear-gradient(135deg, rgba(0,255,136,0.12), rgba(0,200,255,0.06))",
+            border: "1px solid rgba(0,255,136,0.35)",
+            borderRadius: 12, padding: "16px 22px",
+            marginBottom: 28, display: "flex", alignItems: "center", justifyContent: "space-between",
+            animation: "pulse 2s infinite",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <div style={{ fontSize: 28 }}>🏆</div>
+              <div>
+                <div style={{ fontSize: 11, color: "#00ff88", letterSpacing: 3, textTransform: "uppercase" }}>Optimal Match</div>
+                <div style={{ fontSize: 20, fontWeight: 700, marginTop: 2 }}>
+                  {nearest.id} · {nearest.driver}
+                </div>
+                <div style={{ fontSize: 12, color: "#4a7a9b", marginTop: 3 }}>
+                  {nearest.dist.toFixed(2)} km · ETA ~{nearest.eta} min · Fuel {nearest.fuel}%
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => handleDispatch(nearest)}
+              disabled={dispatched !== null}
+              style={{
+                padding: "10px 24px", borderRadius: 8, border: "none", cursor: "pointer",
+                background: dispatched ? "rgba(0,255,136,0.2)" : "linear-gradient(135deg,#00ff88,#00c8ff)",
+                color: dispatched ? "#00ff88" : "#060a0f",
+                fontWeight: 800, fontSize: 13, letterSpacing: 2,
+                fontFamily: "'Courier New', monospace",
+                transition: "all 0.3s", transform: dispatched ? "scale(0.96)" : "scale(1)",
+              }}
+            >
+              {dispatched === nearest.id ? "✓ DISPATCHED" : "DISPATCH NOW"}
+            </button>
+          </div>
+        )}
+
+        {/* Sort controls */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+          <span style={{ fontSize: 11, color: "#4a7a9b", letterSpacing: 2, marginRight: 6 }}>SORT BY:</span>
+          {[
+            { key: "score", label: "⚡ Smart Score" },
+            { key: "distance", label: "📍 Distance" },
+            { key: "eta", label: "⏱ ETA" },
+            { key: "fuel", label: "⛽ Fuel" },
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setSortKey(key)}
+              style={{
+                padding: "6px 14px", borderRadius: 6, border: "1px solid",
+                borderColor: sortKey === key ? "#00c8ff" : "rgba(0,200,255,0.2)",
+                background: sortKey === key ? "rgba(0,200,255,0.12)" : "transparent",
+                color: sortKey === key ? "#00c8ff" : "#4a7a9b",
+                fontSize: 11, letterSpacing: 1, cursor: "pointer",
+                fontFamily: "'Courier New', monospace",
+                transition: "all 0.2s",
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Ambulance list */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {sorted.map((amb, idx) => {
+            const isTop = idx === 0 && amb.status === "available";
+            const isSelected = selectedId === amb.id;
+            return (
+              <div
+                key={amb.id}
+                onClick={() => setSelectedId(isSelected ? null : amb.id)}
+                style={{
+                  border: `1px solid`,
+                  borderColor: isTop
+                    ? "rgba(0,255,136,0.4)"
+                    : isSelected
+                    ? "rgba(0,200,255,0.4)"
+                    : "rgba(255,255,255,0.06)",
+                  borderRadius: 10,
+                  padding: "14px 20px",
+                  background: isTop
+                    ? "rgba(0,255,136,0.04)"
+                    : STATUS_BG[amb.status],
+                  cursor: "pointer",
+                  transition: "all 0.25s",
+                  display: "grid",
+                  gridTemplateColumns: "32px 1fr auto auto auto auto",
+                  alignItems: "center",
+                  gap: 16,
+                }}
+              >
+                {/* Rank */}
+                <div style={{
+                  width: 28, height: 28, borderRadius: "50%",
+                  background: isTop ? "rgba(0,255,136,0.2)" : "rgba(255,255,255,0.04)",
+                  border: `1px solid ${isTop ? "#00ff88" : "rgba(255,255,255,0.1)"}`,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 11, fontWeight: 700,
+                  color: isTop ? "#00ff88" : "#4a7a9b",
+                }}>
+                  {idx + 1}
+                </div>
+
+                {/* Info */}
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontWeight: 700, fontSize: 14, letterSpacing: 1 }}>{amb.id}</span>
+                    <span style={{ fontSize: 12, color: "#8aa8c0" }}>{amb.driver}</span>
+                    {isTop && <span style={{ fontSize: 9, letterSpacing: 2, color: "#00ff88", background: "rgba(0,255,136,0.1)", padding: "2px 7px", borderRadius: 4 }}>NEAREST</span>}
+                  </div>
+                  <div style={{ fontSize: 11, color: "#4a7a9b", marginTop: 3 }}>
+                    {amb.lat.toFixed(4)}°N, {amb.lng.toFixed(4)}°E · Last call: {amb.lastCall}
+                  </div>
+                </div>
+
+                {/* Distance */}
+                <div style={{ textAlign: "right", minWidth: 70 }}>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: "#e0eaf8" }}>{amb.dist.toFixed(2)}</div>
+                  <div style={{ fontSize: 10, color: "#4a7a9b" }}>KM</div>
+                </div>
+
+                {/* ETA */}
+                <div style={{ textAlign: "right", minWidth: 56 }}>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: amb.eta !== null ? "#ffaa00" : "#333" }}>
+                    {amb.eta !== null ? amb.eta : "—"}
+                  </div>
+                  <div style={{ fontSize: 10, color: "#4a7a9b" }}>MIN ETA</div>
+                </div>
+
+                {/* Fuel */}
+                <div style={{ minWidth: 70 }}>
+                  <div style={{ fontSize: 11, color: "#4a7a9b", marginBottom: 4 }}>⛽ {amb.fuel}%</div>
+                  <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 2, width: 64 }}>
+                    <div style={{
+                      height: 4, borderRadius: 2, width: `${amb.fuel}%`,
+                      background: amb.fuel > 60 ? "#00ff88" : amb.fuel > 30 ? "#ffaa00" : "#ff4455",
+                      transition: "width 0.5s",
+                    }} />
+                  </div>
+                </div>
+
+                {/* Status */}
+                <div style={{
+                  padding: "5px 12px", borderRadius: 6,
+                  background: `${STATUS_COLORS[amb.status]}18`,
+                  border: `1px solid ${STATUS_COLORS[amb.status]}44`,
+                  color: STATUS_COLORS[amb.status],
+                  fontSize: 10, letterSpacing: 2, textTransform: "uppercase", fontWeight: 700,
+                  whiteSpace: "nowrap",
+                }}>
+                  {amb.status}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Legend */}
+        <div style={{
+          marginTop: 28, padding: "14px 20px",
+          border: "1px solid rgba(255,255,255,0.05)",
+          borderRadius: 10, background: "rgba(255,255,255,0.02)",
+          display: "flex", gap: 24, fontSize: 11, color: "#4a7a9b",
+          flexWrap: "wrap",
+        }}>
+          <span style={{ color: "#6a8aab" }}>⚡ Smart Score = distance + fuel penalty</span>
+          {Object.entries(STATUS_COLORS).map(([s, c]) => (
+            <span key={s} style={{ color: c }}>⬤ {s}</span>
+          ))}
+          <span>GPS updates every 2s</span>
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(0,255,136,0.15); }
+          50% { box-shadow: 0 0 20px 4px rgba(0,255,136,0.08); }
+        }
+      `}</style>
+    </div>
+  );
+}
